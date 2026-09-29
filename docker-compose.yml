@@ -1,0 +1,47 @@
+# docker compose build
+# docker compose up detector                                   # detector only; play a bag yourself
+# BAG=doubleT_obstacle docker compose --profile demo up        # detector + RViz2 + looped bag
+#
+# BAG_DIR: directory with ROS 2 bags (default ./data/for_hackathon), BAG: bag folder name inside it.
+# For RViz2 on a Linux desktop run `xhost +local:docker` once.
+
+x-ros: &ros
+  image: tunnel-obstacle-detector:latest
+  network_mode: host
+  ipc: host
+  environment:
+    - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
+
+services:
+  detector:
+    <<: *ros
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    volumes:
+      - ./results:/results
+    command: >
+      ros2 launch tunnel_obstacle_detector detector.launch.py
+      csv_log_path:=/results/detector_log.csv
+      summary_path:=/results/detector_summary.json
+
+  rviz:
+    <<: *ros
+    profiles: ["demo", "viz"]
+    environment:
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
+      - DISPLAY=${DISPLAY:-:0}
+      - WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-}
+      - XDG_RUNTIME_DIR=/tmp
+      - QT_X11_NO_MITSHM=1
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    command: rviz2 -d /ws/install/tunnel_obstacle_detector/share/tunnel_obstacle_detector/rviz/detector.rviz
+
+  player:
+    <<: *ros
+    profiles: ["demo"]
+    volumes:
+      - ${BAG_DIR:-./data/for_hackathon}:/data:ro
+    # a small read-ahead queue: the default 1000 messages of 24 MB 360° clouds would stall playback
+    command: bash -c "sleep 3 && ros2 bag play /data/${BAG:-doubleT_obstacle} --loop --read-ahead-queue-size 20"

@@ -1,0 +1,35 @@
+# source data and extracted bags (tens of GB)
+Исходные данные/
+data/
+*.db3
+*.mcap
+*.zst
+
+# local python env / caches
+.venv/
+.pip-cache/
+__pycache__/
+*.pyc
+
+# research outputs
+research/**/plots/
+*.npy
+*.npz
+
+# demo videos (tens of MB, published separately)
+docs/video/*.mp4
+
+# docker compose output (detector CSV log)
+results/
+
+# ROS 2 / colcon build artefacts
+build/
+install/
+log/
+
+# IDE
+.idea/
+.vscode/
+
+# материалы организаторов (расшифровка сессии вопросов и ответов) — не наши, в публичный репозиторий не идут
+Город*.docx

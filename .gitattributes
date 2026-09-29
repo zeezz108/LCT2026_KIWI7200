@@ -1,0 +1,5 @@
+# The project is built and run on Linux: keep LF in the repository and in the working tree.
+* text=auto eol=lf
+*.png binary
+*.mp4 binary
+*.db3 binary

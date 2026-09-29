@@ -1,0 +1,4 @@
+# only ros2_ws/src and docker/ are needed in the build context
+*
+!ros2_ws/src/**
+!docker/**

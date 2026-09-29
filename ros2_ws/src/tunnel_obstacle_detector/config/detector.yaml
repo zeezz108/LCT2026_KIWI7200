@@ -1,0 +1,183 @@
+# Parameters of the metro tunnel obstacle detector (node and offline runner).
+# All lengths in metres, angles in degrees unless stated otherwise.
+/**:
+  ros__parameters:
+    input_topic: ""               # empty: subscribe to the first sensor_msgs/PointCloud2 topic that appears
+    publish_markers: true
+    publish_zone_points: false
+    log_period_s: 1.0
+    csv_log_path: ""              # per-frame CSV log for experiments ("" = off)
+    summary_path: ""              # JSON summary of the run: frames, levels, every reported object
+                                  #   (rewritten every log period, so it survives a stop mid-run)
+    track_frame: "track"          # static TF track -> <cloud frame> is published from the online calibration
+    view_decimation: 2            # ~/view_points keeps every n-th point (RViz)
+    view_max_range: 210.0
+
+    sensor:
+      forward_axis: "-y"          # cloud axis looking ahead of the train: x, -x, y, -y (Z must point up)
+      min_range: 1.0
+      max_range: 250.0
+      dedupe_dual_returns: true   # drop second returns identical to the first one (organized dual-return clouds)
+
+    calibration:                  # lidar pose from the track bed (RANSAC plane 3..20 m ahead)
+      fixed: false                # true: use fixed_* below instead of online estimation
+      fixed_height: 1.34
+      fixed_pitch_deg: 0.0
+      fixed_roll_deg: 0.0
+      ransac_iterations: 200
+      inlier_threshold: 0.04
+      smoothing: 0.2
+
+    track_axis:                   # rails detection in every lidar ring 3..32 m ahead
+      gauge_half: 0.795           # half distance between rail head centres (1520 mm gauge)
+      rail_min_height: 0.08
+      rail_above_bed: 0.08
+      min_inliers: 5
+
+    corridor:                     # curved track axis + bed profile, beam search over curvature per segment
+      length: 200.0
+      segment_edges: [0.0, 10.0, 20.0, 35.0, 60.0, 100.0, 150.0, 200.0]
+      kappa_max: 0.004            # 1/m, R >= 250 m
+      kappa_change_max: 0.0015    # max curvature change between neighbouring segments
+      beam_width: 24
+      coarse_from: 60.0           # cost evaluated on every second cell beyond this distance
+      alternative_cost_abs: 8.0   # hypotheses this close to the best one define the axis uncertainty
+      alternative_cost_rel: 0.1
+      w_smooth: 15.0
+      w_straight: 2.0             # L1 prior towards a straight track: breaks ties of noisy curvature near the train
+      w_straight_far: 10.0        # stronger beyond straight_far_from where walls are sparse (stops far drift)
+      straight_far_from: 60.0
+      w_axis: 40.0
+      w_axis_lookahead: 40.0      # pruning only: rails beyond a segment are scored along its curvature
+      w_wall: 1.0                # reward per row where a wall/column line is found at its near-field offset from the
+      wall_ref_min: 5.0           #   rails (measured 5..30 m): far walls are sparse stripes but stay parallel to the track
+      wall_ref_max: 30.0
+      wall_tolerance: 0.2
+      wall_tolerance_per_m: 0.002
+      w_margin: 0.0               # clearance margin term: off (columns at the gauge limit pushed the axis aside)
+      w_temporal: 0.5
+      kappa_change_rate: 0.0        # [1/(m s)] how fast the curvature under the train may change
+      kappa_rate_limit_until: 35.0  #   (a switch offers a second rail pair). 0 = off: not measured yet
+      search_half_width_upper: 1.45
+      search_half_width_lower: 1.20
+      blocked_half_width: 1.45    # "the corridor points into a wall": long structures inside the clearance
+      blocked_window: 10.0        #   envelope mean the tunnel has turned out of sight. Beyond that distance
+      blocked_cells: 6            #   structures are not evidence about the track, and the bed profile must not
+      blocked_from: 30.0          #   dive to dodge them (that lifts the floor behind them into the envelope)
+
+      estimate_vertical: true
+      w_vertical_temporal: 0.5    # keep the far bed profile from jumping between frames ...
+      vertical_temporal_from: 60.0  # ... only beyond this distance: near the train the bed is well seen
+      grade_max: 0.04
+      w_floor: 1.0                # the bed is a horizontal surface: where one is visible the profile sits on it
+      floor_tolerance: 0.2
+      w_vertical_above: 1.0       # a horizontal surface above the profile is the bed too (keeps the profile off
+      vertical_above_depth: 0.8   #   the drainage trough and out of a dive)
+      w_ceiling_offset: 1.0       # where the floor is NOT visible the ceiling continues the profile at the
+      ceiling_ref_min: 8.0        #   clearance measured near the train ...
+      ceiling_ref_max: 30.0
+      ceiling_min_height: 2.8
+      ceiling_tolerance: 0.3
+      ceiling_only_without_floor: true  # ... and only there: a station vault is 3-4 m higher than the tunnel
+
+    zone:                         # clearance envelope (danger) and warning band around it
+      split_height: 0.9           # below: narrower (contact rail), above: car body
+      half_width_lower: 1.10      # 5 cm of margin below 0.9 m: there the axis uncertainty is subtracted and
+                                  #   objects lying on the track are the critical case
+      half_width_upper: 1.05      # the customer defines the clearance as the car cross-section: 3 m x 2.1 m
+      bottom: 0.30                # above the track bed (rails are ~0.2 m)
+      low_bottom: 0.15            # objects lying on the track are checked from here up to `bottom`,
+                                  #   but only away from the rails and from structures running along the track
+      low_max_distance: 75.0      # ... and only this close: further away the bed profile is less certain
+                                  #   than such an object is high
+      # the customer's minimum obstacle is 300 x 300 x 100 mm - lower than the track's own details (0.16-0.25 m),
+      # so height cannot separate them. This band takes what height cannot: compact, between the rails, rising
+      # above the floor actually seen there, and close enough that the floor is measured and not extrapolated.
+      very_low_bottom: 0.05
+      very_low_max_distance: 25.0 # 0 = band off; beyond 25 m the floor rings are further apart than the radius
+                                  #   that joins them, and every duct breaks into "objects" again
+      very_low_min_distance: 12.0 # closer than this the lidar resolves the four-foot itself: joints and duct
+                                  #   edges rise the same 0.06-0.08 m over the same 0.3 m
+      very_low_warning_only: true # what this band finds sits at the limit of what the data can tell apart
+      very_low_half_width: 0.60   # strictly between the rails: rail feet and fasteners (0.65-0.9 m from the
+                                  #   axis, 0.07-0.14 m above the bed) are exactly what this band would see
+      very_low_max_length: 0.8    # details of the track are metres long; the minimum object is a compact bump
+      very_low_max_width: 0.8
+      very_low_rise: 0.06         # above the floor seen around it
+      top: 3.0
+      lateral_sigma0: 0.05        # envelope shrinks by axis uncertainty: sigma0 + sigma_per_m * distance
+      lateral_sigma_per_m: 0.001  # where walls still confirm the axis the measured error is small (median 0.11 m
+                                  #   at 100 m): shrinking by more used to eat half of the 2.1 m clearance
+      lateral_sigma_beyond_per_m: 0.010  # beyond the distance where walls still confirm the axis the corridor is
+                                  #   an extrapolation and the error grows to metres: shrink ten times faster
+      lateral_shrink_max: 0.90    # ... but never below +-0.45 m, otherwise far objects fall out of the zone
+      bottom_per_m: 0.001
+      warning_margin: 1.0         # warning band width outside the envelope
+      warning_bottom: 0.75        # above the contact rail cover
+      warning_top: 2.5
+      warning_max_distance: 60.0  # further away the axis is too uncertain (~0.3 m) to tell the band from the wall
+      max_axis_spread: 0.9        # no detection where near-optimal axis hypotheses disagree more than this
+
+    detection:
+      x_min: 1.5
+      x_max: 200.0
+      eps_near: 0.35              # clustering radius up to eps_far_from
+      eps_far: 0.7
+      eps_far_from: 60.0
+      very_low_eps_quad: 2.5e-3   # rings graze the floor ~1.67e-3 * x^2 apart; below the low band they must be
+      very_low_eps_max: 1.5       #   joined, or a duct along the track looks like a row of compact objects
+      # Returns of several frames put into one, in coordinates tied to the track (core/track_advance.hpp).
+      # Measured: it moves the first DANGER of an approach from 141 to 164 m, but false DANGER goes 0.15% -> 0.40%
+      # even when the accumulated clusters are reported one level down - far structures stand just as still as
+      # obstacles do. 200 m is not reachable this way either (1-2 returns per frame), so the range criterion stays
+      # in the same tier and the trade is not worth it. Off; the numbers are in docs/research_log.md, day 22.
+      accum_frames: 0             # 0 = off
+      accum_from: 120.0
+      accum_min_points: 10
+      accum_min_frames: 3
+      accum_max_length: 1.5
+      accum_max_bottom: 1.0
+      accum_warning_only: true
+      min_points: 4               # with the wider clearance a cluster of 3 returns at 130-160 m is noise:
+                                  #   a person at 150 m still gives 8-10 returns
+      min_warning_points: 5
+      min_danger_points: 2
+      danger_fraction: 0.2        # share of cluster points inside the envelope for DANGER
+      max_structure_fraction: 0.5 # clusters lying on walls/columns are infrastructure
+      object_height_near: 0.20    # objects must rise above the ground seen around them by
+      object_height_per_m: 0.0    #   min(far, near + per_m * distance); rails are ~0.2 m. Kept low: far away the
+      object_height_far: 0.20     #   ground estimate is unreliable, density/bottom rules handle clutter
+      object_height_low: 0.26     # rise threshold for objects lying on the track: flat track details (ducts,
+      low_cluster_margin: 0.1     #   covers) rise 0.20-0.25 m and gave most false alarms of the 20-minute recording
+      low_requires_ground: true   # such a cluster is judged only against a floor that was really seen
+      ground_window_quad: 0.0024  # the floor is sampled every elevation_step * x^2 / height metres (4 m at 50 m,
+      ground_window_max: 15.0     #   9 m at 75 m), so the window that looks for it grows with distance; every cell
+                                  #   is measured against the bed profile, so the grade does not enter the estimate
+      density_factor: 0.4         # returns >= factor * beams hitting a 0.4 x 0.5 m object at that distance
+      keep_weak_clusters: true    # a cluster below that threshold is not dropped where the threshold itself is
+      weak_max_required: 10.0     #   small (<= 10 points, i.e. beyond ~30 m): it goes to the tracker as "weak"
+                                  #   and needs more frames there. The smallest obstacle of the case gives 3-6
+                                  #   returns at 56 m - exactly this case.
+      max_bottom_height: 1.2      # obstacles stand on the track: lowest point at most this high above the bed
+      max_bottom_height_per_m: 0.004  #   ... plus this much per metre: the bed profile is less certain far away
+      floating_from: 80.0         #   ... but only beyond this distance: a torn cable hanging into the clearance
+                                  #   must be reported, and every false alarm this rule prevents sits beyond 100 m
+      min_far_extent: 0.15        # beyond 60 m: a thin arc from one ring grazing the bed is not an object
+
+    tracking:                     # temporal confirmation
+      confirm_hits: 3             # hits within confirm_window frames
+      confirm_window: 5
+      weak_confirm_hits: 6        # a track built only from weak clusters needs this much evidence ...
+      weak_confirm_window: 10     #   ... within this many frames (noise does not repeat in one place that often)
+      confirm_far_from: 50.0      # beyond this: +confirm_hits_per_25m hits per 25 m, at most confirm_hits_max
+      confirm_hits_per_25m: 1     #   within (required + 3) frames
+      confirm_hits_max: 5
+      danger_hits: 2
+      max_misses: 4
+      report_max_misses: 1
+      strong_points: 40           # a cluster this dense and closer than strong_max_distance is confirmed at once
+      strong_max_distance: 40.0
+      gate_along_base: 1.5
+      gate_along_rel: 0.03
+      gate_lateral: 0.8
+      max_relative_speed: 30.0

@@ -1,0 +1,114 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+    Help Height: 0
+    Property Tree Widget:
+      Expanded: ~
+      Splitter Ratio: 0.55
+  - Class: rviz_common/Views
+    Name: Views
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid (track bed, 5 m)
+      Enabled: true
+      Reference Frame: <Fixed Frame>
+      Cell Size: 5
+      Plane Cell Count: 60
+      Color: 90; 90; 110
+      Alpha: 0.35
+      Offset:
+        X: 145
+        Y: 0
+        Z: 0
+    - Class: rviz_default_plugins/PointCloud2
+      Name: Lidar (zone coloured)
+      Enabled: true
+      Topic:
+        Value: /tunnel_obstacle_detector/view_points
+        Depth: 2
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Durability Policy: Volatile
+      Style: Points
+      Size (Pixels): 2
+      Alpha: 1
+      Color Transformer: Intensity
+      Channel Name: zone
+      Use rainbow: false
+      Min Color: 80; 110; 170
+      Max Color: 255; 40; 40
+      Autocompute Intensity Bounds: false
+      Min Intensity: 0
+      Max Intensity: 2
+      Position Transformer: XYZ
+      Decay Time: 0
+    - Class: rviz_default_plugins/PointCloud2
+      Name: Obstacle points
+      Enabled: true
+      Topic:
+        Value: /tunnel_obstacle_detector/obstacle_points
+        Depth: 2
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Durability Policy: Volatile
+      Style: Points
+      Size (Pixels): 6
+      Alpha: 1
+      Color Transformer: FlatColor
+      Color: 255; 30; 30
+      Position Transformer: XYZ
+      Decay Time: 0
+    - Class: rviz_default_plugins/MarkerArray
+      Name: Corridor and obstacles
+      Enabled: true
+      Topic:
+        Value: /tunnel_obstacle_detector/markers
+        Depth: 5
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Durability Policy: Volatile
+  Enabled: true
+  Global Options:
+    Fixed Frame: track
+    Background Color: 18; 18; 26
+    Frame Rate: 30
+  Tools:
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Name: Behind the train
+      Distance: 45
+      Focal Point:
+        X: 30
+        Y: 0
+        Z: 1
+      Pitch: 0.28
+      Yaw: 3.1416
+      Near Clip Distance: 0.05
+      Target Frame: <Fixed Frame>
+    Saved:
+      - Class: rviz_default_plugins/Orbit
+        Name: Far view
+        Distance: 120
+        Focal Point:
+          X: 110
+          Y: 0
+          Z: 1
+        Pitch: 0.55
+        Yaw: 3.1416
+        Target Frame: <Fixed Frame>
+      - Class: rviz_default_plugins/TopDownOrtho
+        Name: Top down
+        Scale: 6
+        X: 80
+        Y: 0
+        Target Frame: <Fixed Frame>
+Window Geometry:
+  Height: 950
+  Width: 1600
+  Displays:
+    collapsed: false
